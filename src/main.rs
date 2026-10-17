@@ -103,7 +103,7 @@ fn main() {
             eprintln!(
                 "Target size is too small for a video of this length. Audio alone exceeds budget."
             );
-            return;
+            continue;
         }
 
         println!("Processing...");
