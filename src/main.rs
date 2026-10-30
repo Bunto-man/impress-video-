@@ -1,4 +1,5 @@
 use rfd::FileDialog;
+use std::fs;
 use std::io::{self, Write};
 use std::process::{Command, Stdio};
 // Helper function to securely read a number from the terminal
@@ -52,14 +53,23 @@ fn get_video_duration(file_path: &str) -> Result<f64, String> {
         .parse::<f64>()
         .map_err(|_| "Could not parse video duration.".to_string())
 }
+//make a new function to get the current size of the video...
+fn get_file_size(file_path: &str) -> Result<f64, String> {
+    let metadata =
+        fs::metadata(file_path).map_err(|e| format!("Failed to read file metadata: {}", e))?;
 
+    let size_in_bytes = metadata.len();
+    let size_in_mb = size_in_bytes as f64 / 1_048_576.0;
+
+    Ok(size_in_mb)
+}
 fn main() {
     //fist, select a GPU choice for the rest of the program.
     let gpu_choice = prompt_for_number(
         "Select your GPU: \n[1] CPU (Universal) \n[2] NVIDIA \n[3] AMD \n[4] Intel \n[5] Apple Mac\nPress ENTER to use CPU",
         1.0,
     ) as u32;
-
+    //--------------------------------------------------------------------------------------
     // 2. Map the choice to the correct FFmpeg encoder
     // let encoder = match gpu_choice {
     //     2 => "h264_nvenc",
@@ -69,7 +79,7 @@ fn main() {
     //     _ => "libx264", // Safe CPU fallback
     // };
     loop {
-        println!("Step 1: Select a video to compress...");
+        println!("\nSelect a video to compress...");
 
         // 1. Pick the input video
         let input_path = match FileDialog::new()
@@ -97,8 +107,17 @@ fn main() {
                 continue;
             }
         };
+
         println!("Video duration detected: {:.2} seconds", duration);
 
+        let file_size_mb = match get_file_size(&input_str) {
+            Ok(size) => size,
+            Err(e) => {
+                eprintln!("Error: {}", e);
+                return;
+            }
+        };
+        println!("Original video size: {:.2} MB", file_size_mb);
         // 3. Prompt for target size
         let target_mb = prompt_for_number("Enter target file size in Megabytes (MB)", 25.0);
 
