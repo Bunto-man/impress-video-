@@ -188,13 +188,9 @@ fn main() {
                 ]);
             }
             3 => {
-                // AMD (Handles the Linux vs Windows mismatch)
-                if cfg!(target_os = "windows") {
-                    ffmpeg_args.extend_from_slice(&["-c:v", "h264_amf", "-quality", "quality"]);
-                } else {
-                    println!("Notice: AMD AMF requires Windows. Defaulting to CPU encoding...");
-                    ffmpeg_args.extend_from_slice(&["-c:v", "libx264", "-preset", "fast"]);
-                }
+                // AMD (Handles the Linux vs Windows mismatch) ((I got rid of this. if it works it works, if not, oh well.))
+
+                ffmpeg_args.extend_from_slice(&["-c:v", "h264_amf", "-quality", "quality"]);
             }
             4 => {
                 // Intel QuickSync
