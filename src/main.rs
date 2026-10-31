@@ -83,7 +83,7 @@ fn main() {
 
         // 1. Pick the input video
         let input_path = match FileDialog::new()
-            .add_filter("Videos", &["mp4", "avi", "mov"])
+            .add_filter("Videos", &["mp4", "avi", "mov", "webm", "mkv"])
             .pick_file()
         {
             Some(path) => path,
