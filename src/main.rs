@@ -2,7 +2,9 @@ use rfd::FileDialog;
 use std::fs;
 use std::io::{self, Write};
 use std::process::{Command, Stdio};
-// Helper function to securely read a number from the terminal
+/// Helper function to securely read a number from the terminal
+/// - Prompt is the number entered by the user thru keyboard
+/// - default is set to 25MB, go check it out. Change if you want.
 fn prompt_for_number(prompt: &str, default: f64) -> f64 {
     loop {
         let mut input = String::new();
@@ -64,24 +66,17 @@ fn get_file_size(file_path: &str) -> Result<f64, String> {
     Ok(size_in_mb)
 }
 fn main() {
-    //fist, select a GPU choice for the rest of the program.
+    //first, select a GPU choice for the rest of the program.
+    let mut total_compressed: f64 = 0.0;
     let gpu_choice = prompt_for_number(
         "Select your GPU: \n[1] CPU (Universal) \n[2] NVIDIA \n[3] AMD \n[4] Intel \n[5] Apple Mac\nPress ENTER to use CPU",
         1.0,
     ) as u32;
     //--------------------------------------------------------------------------------------
-    // 2. Map the choice to the correct FFmpeg encoder
-    // let encoder = match gpu_choice {
-    //     2 => "h264_nvenc",
-    //     3 => "h264_amf",
-    //     4 => "h264_qsv",
-    //     5 => "h264_videotoolbox",
-    //     _ => "libx264", // Safe CPU fallback
-    // };
     loop {
         println!("\nSelect a video to compress...");
 
-        // 1. Pick the input video
+        //Pick the input video
         let input_path = match FileDialog::new()
             .add_filter("Videos", &["mp4", "avi", "mov", "webm", "mkv"])
             .pick_file()
@@ -92,11 +87,11 @@ fn main() {
                 return;
             }
         };
-
+        //the path to the video
         let input_str = input_path.to_string_lossy().to_string();
         println!("Selected: {}", input_str);
 
-        // 2. Get the duration
+        // Get the duration of the video
         let duration = match get_video_duration(&input_str) {
             Ok(d) => d,
             Err(e) => {
@@ -118,9 +113,13 @@ fn main() {
             }
         };
         println!("Original video size: {:.2} MB", file_size_mb);
-        // 3. Prompt for target size
-        let target_mb = prompt_for_number("Enter target file size in Megabytes (MB)", 25.0);
+        // Prompt for target size
 
+        let target_mb = prompt_for_number("Enter target file size in Megabytes (MB)", 25.0);
+        if target_mb > file_size_mb {
+            println!("!! You can't compress a file to be larger !!\n Retrying...");
+            continue;
+        }
         // Target size in bits: MB * 8,388,608
         let target_bits = target_mb * 8388608.0;
 
@@ -234,9 +233,11 @@ fn main() {
 
         if status.success() {
             println!(
-                "Success! Video compressed to approximately {:.2} MB at {}",
+                "\nSuccess! Video compressed to approximately {:.2} MB at {}",
                 target_mb, output_str
             );
+            total_compressed += file_size_mb - target_mb;
+            println!("Total Data Compressed: {:.2} MB\n", total_compressed);
         } else {
             eprintln!("ERROR: FFmpeg encountered an (unknown?) error during compression.");
         }
