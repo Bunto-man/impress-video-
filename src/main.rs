@@ -141,6 +141,8 @@ fn main() {
             );
             continue;
         }
+        let compression_factor = file_size_mb / target_mb;
+        println!("\n\n!COMPRESSION FACTOR: {:.2}!\n", compression_factor);
         // now choose where to put the video, once it WILL work.
         println!("Choose where to save the new video...");
 
