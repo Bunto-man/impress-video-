@@ -1,6 +1,7 @@
 use rfd::FileDialog;
 use std::fs;
 use std::io::{self, Write};
+use std::path::Path;
 use std::process::{Command, Stdio};
 /// Helper function to securely read a number from the terminal
 /// - Prompt is the number entered by the user thru keyboard
@@ -34,7 +35,7 @@ fn prompt_for_number(prompt: &str, default: f64) -> f64 {
     }
 }
 
-// Uses ffprobe to extract the exact length of the video in seconds
+/// Uses ffprobe to extract the exact length of the video in seconds
 fn get_video_duration(file_path: &str) -> Result<f64, String> {
     let output = Command::new("ffprobe")
         .args([
@@ -55,6 +56,14 @@ fn get_video_duration(file_path: &str) -> Result<f64, String> {
         .parse::<f64>()
         .map_err(|_| "Could not parse video duration.".to_string())
 }
+///cuts the name out of the file, ready for pasting.
+fn get_file_name(file_path: &str) -> String {
+    Path::new(file_path)
+        .file_stem() // Extracts the name without the extension
+        .and_then(|name| name.to_str())
+        .unwrap_or("")
+        .to_string() // Converts the slice into an owned String
+}
 //make a new function to get the current size of the video...
 fn get_file_size(file_path: &str) -> Result<f64, String> {
     let metadata =
@@ -67,9 +76,11 @@ fn get_file_size(file_path: &str) -> Result<f64, String> {
 }
 fn main() {
     //first, select a GPU choice for the rest of the program.
+    //
+    println!("This program will take any video you choose to compress.");
     let mut total_compressed: f64 = 0.0;
     let gpu_choice = prompt_for_number(
-        "Select your GPU: \n[1] CPU (Universal) \n[2] NVIDIA \n[3] AMD \n[4] Intel \n[5] Apple Mac\nPress ENTER to use CPU",
+        "Select your GPU Architecture: \n[1] CPU (Universal) \n[2] NVIDIA \n[3] AMD \n[4] Intel \n[5] Apple Mac\nOR Press ENTER to use CPU",
         1.0,
     ) as u32;
     //--------------------------------------------------------------------------------------
@@ -78,13 +89,13 @@ fn main() {
 
         //Pick the input video
         let input_path = match FileDialog::new()
-            .add_filter("Videos", &["mp4", "avi", "mov", "webm", "mkv"])
+            .add_filter("Videos", &["mp4", "avi", "mov", "webm", "mkv", "wmv"])
             .pick_file()
         {
             Some(path) => path,
             None => {
-                println!("ERROR : No file selected. Exiting...");
-                return;
+                println!("ERROR : No file selected.\nTry again.");
+                continue;
             }
         };
         //the path to the video
@@ -99,11 +110,15 @@ fn main() {
                     "ERROR: Error reading video metadata: {}. Is FFmpeg installed?",
                     e
                 );
-                continue;
+                return;
             }
         };
-
-        println!("Video duration detected: {:.2} seconds", duration);
+        //make it pretty.
+        println!(
+            "------------------------------------------------
+        VIDEO DETAILS: "
+        );
+        println!("Video Duration Detected: {:.2} seconds", duration);
 
         let file_size_mb = match get_file_size(&input_str) {
             Ok(size) => size,
@@ -112,10 +127,20 @@ fn main() {
                 return;
             }
         };
-        println!("Original video size: {:.2} MB", file_size_mb);
-        // Prompt for target size
+        println!("Original Video Size: {:.2} MB", file_size_mb);
 
-        let target_mb = prompt_for_number("Enter target file size in Megabytes (MB)", 25.0);
+        let mut filename = String::from(get_file_name(&input_str));
+        println!("Original Video Name: {filename}");
+
+        //now separate the details to make it seem pretty.
+        println!("--------------------------------------------------------------");
+        // Prompt for target size
+        let default_compression = (file_size_mb / 2.0).round();
+
+        let target_mb = prompt_for_number(
+            "Enter Target File Size in Megabytes (MB)",
+            default_compression,
+        );
         if target_mb > file_size_mb {
             println!("!! You can't compress a file to be larger !!\n Retrying...");
             continue;
@@ -131,22 +156,27 @@ fn main() {
         let video_bitrate = total_bitrate - audio_bitrate;
         //to help you see whatever might have gone wrong.
         println!(
-            "Target Bit Rate: {} must be lower than 10_000",
+            "Target Bit Rate: {} must be HIGHER than 10_000 to work",
             video_bitrate
         );
         if video_bitrate <= 10_000.0 {
             eprintln!(
-                "ERROR: Target size is too small for a video of this length. Audio alone exceeds budget."
+                "ERROR: Target size is too small for a video of this length. Audio alone exceeds budget.
+                \nTip: slightly increase target size until over 10_000"
             );
             continue;
         }
         let compression_factor = file_size_mb / target_mb;
         println!("\n\n!COMPRESSION FACTOR: {:.2}!\n", compression_factor);
+
+        //give the output a file name too.
+        // this reuses the string from earlier, just now it appends _compressed to the first name.
+        filename.push_str("_compressed");
         // now choose where to put the video, once it WILL work.
         println!("Choose where to save the new video...");
 
         let output_path = match FileDialog::new()
-            .set_file_name("compressed_video.mp4")
+            .set_file_name(filename)
             .add_filter("MP4 Video", &["mp4"])
             .save_file()
         {
@@ -236,8 +266,12 @@ fn main() {
                 "\nSuccess! Video compressed to approximately {:.2} MB at {}",
                 target_mb, output_str
             );
+
             total_compressed += file_size_mb - target_mb;
-            println!("Total Data Compressed: {:.2} MB\n", total_compressed);
+            println!(
+                "Total Data Compressed This Session:: {:.2} MB\n",
+                total_compressed
+            );
         } else {
             eprintln!("ERROR: FFmpeg encountered an (unknown?) error during compression.");
         }

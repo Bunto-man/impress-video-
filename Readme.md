@@ -22,3 +22,10 @@ Scoop install ffmpeg-essentials
 Download the official installer off of the website at https://www.ffmpeg.org/download.html
 - It's free.
 - it's easy
+---
+### Big Letters Update: 
+- [x] Made Good Changes for the User.
+- [x] Improved the handling of logic errors and such
+- [x] Improved file naming convention from static to dynamic
+- [x] Added new feedback features to display information like video length, video size, video name, compression factor, total data compressed, and much more.
+- [x] Added some human touch.
