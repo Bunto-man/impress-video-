@@ -84,7 +84,7 @@ fn main() {
         "Select your GPU Architecture: \n[1] CPU (Universal) \n[2] NVIDIA \n[3] AMD \n[4] Intel \n[5] Apple Mac\nOR Press ENTER to use CPU",
         1.0,
     ) as u32;
-
+    let mut loops = 0;
     //--------------------------------------------------------------------------------------
     loop {
         println!("\nSelect a video to compress...");
@@ -182,6 +182,9 @@ fn main() {
         //give the output a file name too.
         // this reuses the string from earlier, just now it appends _compressed to the first name.
         filename.push_str("_compressed");
+        if loops == !0 {
+            filename.push_str("{loops}");
+        }
         // now choose where to put the video, once it WILL work.
         println!("Choose where to save the new video...");
 
@@ -286,6 +289,7 @@ fn main() {
                 "Total Data Compressed This Session:: {:.2} MB\n",
                 total_compressed
             );
+            loops += 1;
         } else {
             eprintln!("ERROR: FFmpeg encountered an (unknown?) error during compression.");
         }
