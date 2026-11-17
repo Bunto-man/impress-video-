@@ -136,12 +136,15 @@ fn main() {
 
         //now separate the details to make it seem pretty.
         println!("--------------------------------------------------------------");
+        let audio_bitraw = prompt_for_number("Enter Target audio quality in kb", 128.0);
         // Prompt for target size
         let default_compression = (file_size_mb / 2.0).round();
 
-        let audio_bitrate = 128_000.0;
-
+        //let audio_bitrate = 128_000.0;
+        let audio_bitrate = audio_bitraw * 1000.0;
         let min_bitrate = 10_005.0 + audio_bitrate;
+        let output_bitrateaudio = format!("{:.0}", audio_bitrate);
+        //now judge the bits
         let min_total_bits = min_bitrate * duration;
         let min_mb = min_total_bits / 8_388_608.0;
         println!("The MINIMUM compression for this video is {:.6} MB", min_mb);
@@ -265,7 +268,7 @@ fn main() {
             "-c:a",
             "aac",
             "-b:a",
-            "128k",
+            &output_bitrateaudio,
             &output_str,
         ]);
 
