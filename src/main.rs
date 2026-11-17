@@ -5,7 +5,8 @@ use std::path::Path;
 use std::process::{Command, Stdio};
 /// Helper function to securely read a number from the terminal
 /// - Prompt is the number entered by the user thru keyboard
-/// - default is set to 25MB, go check it out. Change if you want.
+/// - Default number for videos is set to half of the size of the selected video
+/// - Default for the choice of processor is set to the CPU fallback option
 fn prompt_for_number(prompt: &str, default: f64) -> f64 {
     loop {
         let mut input = String::new();
@@ -83,6 +84,7 @@ fn main() {
         "Select your GPU Architecture: \n[1] CPU (Universal) \n[2] NVIDIA \n[3] AMD \n[4] Intel \n[5] Apple Mac\nOR Press ENTER to use CPU",
         1.0,
     ) as u32;
+
     //--------------------------------------------------------------------------------------
     loop {
         println!("\nSelect a video to compress...");
@@ -137,6 +139,12 @@ fn main() {
         // Prompt for target size
         let default_compression = (file_size_mb / 2.0).round();
 
+        let audio_bitrate = 128_000.0;
+
+        let min_bitrate = 10_005.0 + audio_bitrate;
+        let min_total_bits = min_bitrate * duration;
+        let min_mb = min_total_bits / 8_388_608.0;
+        println!("The MINIMUM compression for this video is {:.6} MB", min_mb);
         let target_mb = prompt_for_number(
             "Enter Target File Size in Megabytes (MB)",
             default_compression,
@@ -152,8 +160,9 @@ fn main() {
         let total_bitrate = target_bits / duration;
 
         // Reserve 128 kbps (128,000 bps) for the audio track
-        let audio_bitrate = 128_000.0;
+        //let audio_bitrate = 128_000.0;
         let video_bitrate = total_bitrate - audio_bitrate;
+
         //to help you see whatever might have gone wrong.
         println!(
             "Target Bit Rate: {} must be HIGHER than 10_000 to work",
@@ -166,6 +175,7 @@ fn main() {
             );
             continue;
         }
+
         let compression_factor = file_size_mb / target_mb;
         println!("\n\n!COMPRESSION FACTOR: {:.2}!\n", compression_factor);
 
@@ -187,7 +197,11 @@ fn main() {
             }
         };
 
-        let output_str = output_path.to_string_lossy().to_string();
+        let mut output_str = output_path.to_string_lossy().to_string();
+
+        if !output_str.to_lowercase().ends_with(".mp4") {
+            output_str.push_str(".mp4");
+        }
         //Now process the video crazy style.
         //
         println!("Processing...");
