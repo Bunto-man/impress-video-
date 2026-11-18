@@ -136,7 +136,12 @@ fn main() {
 
         //now separate the details to make it seem pretty.
         println!("--------------------------------------------------------------");
+        println!("!!TIP!!: Do not go lower than 1 bit for audio, use 1k at lowest");
         let audio_bitraw = prompt_for_number("Enter Target audio quality in kb", 128.0);
+        if audio_bitraw <= 0.001 {
+            println!("FFMPEG WILL NOT WORK! Try again.");
+            continue;
+        }
         // Prompt for target size
         let default_compression = (file_size_mb / 2.0).round();
 
@@ -147,7 +152,10 @@ fn main() {
         //now judge the bits
         let min_total_bits = min_bitrate * duration;
         let min_mb = min_total_bits / 8_388_608.0;
-        println!("The MINIMUM compression for this video is {:.6} MB", min_mb);
+        println!(
+            "The MINIMUM compression for this video is {:.12} MB",
+            min_mb
+        );
         let target_mb = prompt_for_number(
             "Enter Target File Size in Megabytes (MB)",
             default_compression,
