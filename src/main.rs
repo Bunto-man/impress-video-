@@ -147,7 +147,7 @@ fn main() {
 
         //let audio_bitrate = 128_000.0;
         let audio_bitrate = audio_bitraw * 1000.0;
-        let min_bitrate = 10_005.0 + audio_bitrate;
+        let min_bitrate = 1_000.1 + audio_bitrate;
         let output_bitrateaudio = format!("{:.0}", audio_bitrate);
         //now judge the bits
         let min_total_bits = min_bitrate * duration;
@@ -179,10 +179,10 @@ fn main() {
             "Target Bit Rate: {} must be HIGHER than 10_000 to work",
             video_bitrate
         );
-        if video_bitrate <= 10_000.0 {
+        if video_bitrate < 1_000.0 {
             eprintln!(
                 "ERROR: Target size is too small for a video of this length. Audio alone exceeds budget.
-                \nTip: slightly increase target size until over 10_000"
+                \nTip: slightly increase target size until at least 1,000bps"
             );
             continue;
         }
