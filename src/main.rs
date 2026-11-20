@@ -84,7 +84,7 @@ fn main() {
         "Select your GPU Architecture: \n[1] CPU (Universal) \n[2] NVIDIA \n[3] AMD \n[4] Intel \n[5] Apple Mac\nOR Press ENTER to use CPU",
         1.0,
     ) as u32;
-    let mut loops = 0;
+    //let mut loops = 0;
     //--------------------------------------------------------------------------------------
     loop {
         println!("\nSelect a video to compress...");
@@ -174,10 +174,15 @@ fn main() {
         //let audio_bitrate = 128_000.0;
         let video_bitrate = total_bitrate - audio_bitrate;
 
+        //to help you see whatever might have gone wrong.
+        println!(
+            "Target Bit Rate: {} must be HIGHER than 10_000 to work",
+            video_bitrate
+        );
         if video_bitrate < 1_000.0 {
             eprintln!(
                 "ERROR: Target size is too small for a video of this length. Audio alone exceeds budget.
-                \nTip: slightly increase target size until at least 1,000bps \n Current bitrate: {:.2}", video_bitrate
+                \nTip: slightly increase target size until at least 1,000bps"
             );
             continue;
         }
@@ -188,9 +193,9 @@ fn main() {
         //give the output a file name too.
         // this reuses the string from earlier, just now it appends _compressed to the first name.
         filename.push_str("_compressed");
-        if loops == !0 {
-            filename.push_str("{loops}");
-        }
+        // if loops == !0 {
+        //     filename.push_str("{loops}");
+        // }
         // now choose where to put the video, once it WILL work.
         println!("Choose where to save the new video...");
 
@@ -230,37 +235,35 @@ fn main() {
 
         // 3. Apply the specific encoder and its unique proprietary flags
         match gpu_choice {
-            2 => {
-                // NVIDIA
-                ffmpeg_args.extend_from_slice(&[
-                    "-c:v",
-                    "h264_nvenc",
-                    "-preset",
-                    "p6",
-                    "-tune",
-                    "hq",
-                ]);
-            }
-            3 => {
-                // AMD (Handles the Linux vs Windows mismatch) ((I got rid of this. if it works it works, if not, oh well.))
-
-                ffmpeg_args.extend_from_slice(&["-c:v", "h264_amf", "-quality", "quality"]);
-            }
-            4 => {
-                // Intel QuickSync
-                ffmpeg_args.extend_from_slice(&["-c:v", "h264_qsv", "-preset", "slower"]);
-            }
-            5 => {
-                // Apple Mac
-                ffmpeg_args.extend_from_slice(&["-c:v", "h264_videotoolbox"]);
-            }
+            2 => ffmpeg_args.extend_from_slice(&[
+                "-c:v",
+                "h264_nvenc",
+                "-preset",
+                "p7",
+                "-tune",
+                "hq",
+            ]),
+            3 => ffmpeg_args.extend_from_slice(&["-c:v", "h264_amf", "-quality", "quality"]),
+            4 => ffmpeg_args.extend_from_slice(&["-c:v", "h264_qsv", "-preset", "veryslow"]),
+            5 => ffmpeg_args.extend_from_slice(&["-c:v", "h264_videotoolbox"]),
             _ => {
-                // Universal CPU fallback
-                ffmpeg_args.extend_from_slice(&["-c:v", "libx264", "-preset", "fast"]);
+                // "veryslow" squeezes every possible byte out of libx264 (or swap to "libx265" for even smaller files)
+                ffmpeg_args.extend_from_slice(&["-c:v", "libx264", "-preset", "veryslow"]);
             }
         }
 
-        // 4. Attach the universal bitrate and audio formatting to the end
+        if video_bitrate < 15_000.0 {
+            println!("Maximum Crunch Mode: 72p @ 5 FPS");
+            ffmpeg_args.extend_from_slice(&["-vf", "scale=-2:72", "-r", "5"]);
+        } else if video_bitrate < 80_000.0 {
+            println!("Heavy Compression Mode: 144p @ 10 FPS");
+            ffmpeg_args.extend_from_slice(&["-vf", "scale=-2:144", "-r", "10"]);
+        } else if video_bitrate < 250_000.0 {
+            println!("Medium Compression Mode: 360p @ 24 FPS");
+            ffmpeg_args.extend_from_slice(&["-vf", "scale=-2:360", "-r", "24"]);
+        }
+
+        // 4. Attach video bitrate and dynamically scaled audio
         ffmpeg_args.extend_from_slice(&[
             "-b:v",
             &video_bitrate_str,
@@ -268,12 +271,25 @@ fn main() {
             &maxrate_str,
             "-bufsize",
             &bufsize_str,
-            "-c:a",
-            "aac",
-            "-b:a",
-            &output_bitrateaudio,
-            &output_str,
         ]);
+
+        if audio_bitrate < 32_000.0 {
+            // Downmix to mono + 8 kHz so AAC can actually approach ultra-low bitrates
+            ffmpeg_args.extend_from_slice(&[
+                "-c:a",
+                "aac",
+                "-ac",
+                "1",
+                "-ar",
+                "8000",
+                "-b:a",
+                &output_bitrateaudio,
+            ]);
+        } else {
+            ffmpeg_args.extend_from_slice(&["-c:a", "aac", "-b:a", &output_bitrateaudio]);
+        }
+
+        ffmpeg_args.push(&output_str);
 
         // 5. Execute FFmpeg by passing the complete vector slice
         let mut child = Command::new("ffmpeg")
@@ -283,19 +299,25 @@ fn main() {
             .expect("Failed to start FFmpeg process");
 
         let status = child.wait().expect("Failed to wait on FFmpeg process");
-
+        let output_size = match get_file_size(&output_str) {
+            Ok(size) => size,
+            Err(e) => {
+                eprintln!("Error: {}", e);
+                return;
+            }
+        }; //now the output size is actually accurate.
         if status.success() {
             println!(
                 "\nSuccess! Video compressed to approximately {:.2} MB at {}",
-                target_mb, output_str
+                output_size, output_str
             );
 
-            total_compressed += file_size_mb - target_mb;
+            total_compressed += file_size_mb - output_size;
             println!(
                 "Total Data Compressed This Session:: {:.2} MB\n",
                 total_compressed
             );
-            loops += 1;
+            // loops += 1;
         } else {
             eprintln!("ERROR: FFmpeg encountered an (unknown?) error during compression.");
         }
